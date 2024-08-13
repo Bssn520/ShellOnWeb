@@ -1,3 +1,5 @@
+#include <ctype.h>
+#include <netinet/in.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -7,9 +9,23 @@
 
 void commandRun(const char* command);
 void error_die(const char* error);
+int startup(u_short* port);
+
+
+
 
 int main(void)
-{
+{   
+    int server_sock = -1;
+    u_short port = 4000;
+    int client_sock = -1;
+
+    server_sock = startup(&port);
+    printf("Server running on port %d 👌\n\n", port);
+
+
+
+
     char command[100];
     
     while (1)
@@ -28,6 +44,50 @@ int main(void)
     }
 
     return 0;
+}
+
+int startup(u_short* port)
+{
+    // 1. 创建套接字描述符
+    // 2. 为套接字设置选项
+    // 3. 将套接字与属性绑定
+    // 4. 处理端口为0的情况下动态分配端口
+    // 5. 将套接字设置为监听状态
+
+
+    int server = 0;
+    int on = 1;
+    struct sockaddr_in sock_config;
+
+    // 1. 用socket函数创建套接字描述符
+    server = socket(AF_INET, SOCK_STREAM, 0);
+    if (server == -1)
+        error_die("socket");
+    // 2. 为套接字设置选项
+    if (setsockopt(server, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on)) < 0)
+        error_die("setsockopt");
+    // 3. 将套接字与属性绑定
+    memset(&sock_config, 0, sizeof(sock_config)); // 把 sock_config 结构体清零以待后续操作
+    sock_config.sin_family = AF_INET; // 设置协议族为 IPv4
+    sock_config.sin_port = htons(*port); // 设置端口
+    sock_config.sin_addr.s_addr = htonl(INADDR_ANY); // 设置IP地址
+    if (bind(server, (struct sockaddr*)&sock_config, sizeof(sock_config)) < 0)
+        error_die("bind");
+    // 4. 处理端口为0的情况下动态分配端口
+    if (*port == 0)
+    {
+        socklen_t sock_config_len = sizeof(sock_config);
+        // 判断sock是否创建成功
+        if (getsockname(server, (struct sockaddr*)&sock_config, &sock_config_len) == -1)
+            error_die("getsock");
+        // 如果获取 sock 信息没有报错，则可以从sock信息结构体变量name中拿到想要的值
+        *port = ntohs(sock_config.sin_port);
+    }
+    // 5. 将套接字设置为监听状态
+    if (listen(server, 5) < 0)
+        error_die("listen");
+
+    return server;
 }
 
 void commandRun(const char* command)
