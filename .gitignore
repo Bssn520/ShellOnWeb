@@ -4,6 +4,8 @@
 
 !README.md
 
+!Makefile
+
 !*.c
 
 # 取消忽略 src 目录及其内容
